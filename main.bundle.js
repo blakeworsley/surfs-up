@@ -42,7 +42,7 @@
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	const canvas = document.getElementById('surfer-game');
 	const Game = __webpack_require__(1);
@@ -51,12 +51,26 @@
 	var game = new Game(canvas);
 
 	document.addEventListener('keydown', function (e) {
-	  if (e.keyCode === KEYS.spacebar) {
-	    if (game.world.surfer.bottom > 189 && game.active) {
-	      game.world.surfer.velocity = -13;
+	  if (e.keyCode === KEYS.spacebar && !game.active) {
+	    game = new Game(canvas);
+	  }
+	  if (game.active) {
+	    if (e.keyCode === KEYS.up || e.keyCode === KEYS.w) {
+	      game.world.surfer.moveUp();
 	    }
-	    if (!game.active) {
-	      game = new Game(canvas);
+	    if (e.keyCode === KEYS.down || e.keyCode === KEYS.s) {
+	      game.world.surfer.moveDown();
+	    }
+	  }
+	});
+
+	document.addEventListener('keyup', function (e) {
+	  if (game.active) {
+	    if (e.keyCode === KEYS.up || e.keyCode === KEYS.w) {
+	      game.world.surfer.stopMovingUp();
+	    }
+	    if (e.keyCode === KEYS.down || e.keyCode === KEYS.s) {
+	      game.world.surfer.stopMovingDown();
 	    }
 	  }
 	});
@@ -70,11 +84,11 @@
 
 	module.exports = canvas;
 
-/***/ },
+/***/ }),
 /* 1 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
-	const Rock = __webpack_require__(2);
+	const Obstacle = __webpack_require__(2);
 	const World = __webpack_require__(3);
 	const Surfer = __webpack_require__(4);
 	const Collision = __webpack_require__(5);
@@ -84,10 +98,9 @@
 	function Game() {
 	  this.canvas = canvas;
 	  this.context = this.canvas.getContext('2d');
-	  this.floor = this.canvas.height - 10;
 	  this.surfer = new Surfer({});
-	  this.rocks = this.createRocks();
-	  this.world = new World(this.canvas.width, this.canvas.height, this.floor, this.surfer, this.rocks);
+	  this.obstacles = this.createObstacles();
+	  this.world = new World(this.canvas.width, this.canvas.height, this.surfer, this.obstacles);
 	  this.collision = new Collision(this.surfer);
 	  this.tick = 0;
 	  this.score = 0;
@@ -97,45 +110,45 @@
 	Game.prototype.cycle = function () {
 	  this.renderWorld(this.context, this.world);
 	  this.animateSurfer();
-	  if (this.collision.checkForCollision(this.rocks)) {
+	  if (this.collision.checkForCollision(this.obstacles)) {
 	    this.gameOver();
 	  }
-	  this.rocks.forEach(function (rock) {
-	    rock.moveLeft();
+	  this.obstacles.forEach(function (obstacle) {
+	    obstacle.moveLeft();
 	  });
-	  this.world.surfer.jump();
+	  this.world.surfer.update();
 	  this.tick++;
 	  if (this.tick % 5 === 0) {
 	    this.score++;
 	  }
-	  this.speedUpRock();
+	  this.speedUpObstacles();
 	};
 
 	Game.prototype.renderWorld = function () {
 	  this.context.clearRect(0, 0, this.world.width, this.world.height);
-	  this.rocks.forEach(function (rock) {
-	    if (rock.size === 'small') {
-	      this.context.drawImage(rock.image, 0, 0, 25, 25, rock.x, rock.y, 25, 25);
+	  this.obstacles.forEach(function (obstacle) {
+	    if (obstacle.type === 'swimmer') {
+	      this.context.drawImage(obstacle.image, 0, 0, 35, 35, obstacle.x, obstacle.y, 35, 35);
 	    }
-	    if (rock.size === 'medium') {
-	      this.context.drawImage(rock.image, 0, 0, 35, 35, rock.x, rock.y, 35, 35);
+	    if (obstacle.type === 'surfer') {
+	      this.context.drawImage(obstacle.image, 0, 0, 40, 50, obstacle.x, obstacle.y, 40, 50);
 	    }
-	    if (rock.size === 'large') {
-	      this.context.drawImage(rock.image, 0, 0, 40, 40, rock.x, rock.y, 40, 40);
+	    if (obstacle.type === 'person') {
+	      this.context.drawImage(obstacle.image, 0, 0, 45, 55, obstacle.x, obstacle.y, 45, 55);
 	    }
 	  }.bind(this));
 	  this.context.font = FONTS.main;
 	  this.context.fillText('Score: ' + this.score, 425, 40);
 	};
 
-	Game.prototype.createRocks = function () {
-	  return [new Rock({ game: this }).small(), new Rock({ game: this }).medium(), new Rock({ game: this }).large()];
+	Game.prototype.createObstacles = function () {
+	  return [new Obstacle({ game: this }).surfer(), new Obstacle({ game: this }).swimmer(), new Obstacle({ game: this }).person(), new Obstacle({ game: this }).surfer(), new Obstacle({ game: this }).swimmer()];
 	};
 
-	Game.prototype.speedUpRock = function () {
+	Game.prototype.speedUpObstacles = function () {
 	  if (this.score % 101 === 0) {
-	    return this.rocks.forEach(function (rock) {
-	      return rock.speed += 0.05;
+	    return this.obstacles.forEach(function (obstacle) {
+	      return obstacle.speed += 0.05;
 	    });
 	  }
 	};
@@ -175,28 +188,29 @@
 
 	module.exports = Game;
 
-/***/ },
+/***/ }),
 /* 2 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
-	function Rock(options) {
-	  this.width = options.width || 25;
-	  this.height = options.height || 25;
-	  this.x = this.placeRock();
-	  this.y = options.y || 190 - this.height;
+	function Obstacle(options) {
+	  this.width = options.width || 40;
+	  this.height = options.height || 50;
+	  this.x = this.placeObstacle();
+	  this.y = options.y || this.randomY();
 	  this.bottom = this.y + this.height;
 	  this.right = this.x + this.width;
-	  this.offset = 150;
-	  this.speed = 6;
+	  this.speed = 5;
+	  this.type = options.type || 'surfer';
 	}
 
-	Rock.prototype.isOffScreenLeft = function () {
+	Obstacle.prototype.isOffScreenLeft = function () {
 	  return this.x < 0 - this.width;
 	};
 
-	Rock.prototype.moveLeft = function () {
+	Obstacle.prototype.moveLeft = function () {
 	  if (this.isOffScreenLeft()) {
-	    this.placeRock();
+	    this.placeObstacle();
+	    this.y = this.randomY(); // Randomize vertical position when respawning
 	    return;
 	  }
 	  this.x = this.x - this.speed;
@@ -204,109 +218,113 @@
 	  return this;
 	};
 
-	Rock.prototype.small = function () {
-	  this.y = 165;
-	  this.width = 25;
-	  this.height = 25;
+	Obstacle.prototype.surfer = function () {
+	  this.width = 40;
+	  this.height = 50;
 	  this.image = new Image();
-	  this.image.src = `./img/small-rock.png`;
-	  this.size = 'small';
+	  this.image.src = `./img/medium-rock.png`; // Will use rock as placeholder
+	  this.type = 'surfer';
 	  return this;
 	};
 
-	Rock.prototype.medium = function () {
-	  this.y = 155;
+	Obstacle.prototype.swimmer = function () {
 	  this.width = 35;
 	  this.height = 35;
 	  this.image = new Image();
-	  this.image.src = `./img/medium-rock.png`;
-	  this.size = 'medium';
+	  this.image.src = `./img/small-rock.png`; // Will use rock as placeholder
+	  this.type = 'swimmer';
 	  return this;
 	};
 
-	Rock.prototype.large = function () {
-	  this.y = 150;
-	  this.width = 40;
-	  this.height = 40;
+	Obstacle.prototype.person = function () {
+	  this.width = 45;
+	  this.height = 55;
 	  this.image = new Image();
-	  this.image.src = `./img/large-rock.png`;
-	  this.size = 'large';
+	  this.image.src = `./img/large-rock.png`; // Will use rock as placeholder
+	  this.type = 'person';
 	  return this;
 	};
 
-	Rock.prototype.randomXGenerator = function () {
-	  return Math.floor(Math.random() * (3000 - 600)) + 600;
+	Obstacle.prototype.randomXGenerator = function () {
+	  return Math.floor(Math.random() * (3000 - 800)) + 800;
 	};
 
-	Rock.prototype.placeRock = function () {
+	Obstacle.prototype.randomY = function () {
+	  // Generate random Y position between 20 and 140 (within playable area)
+	  return Math.floor(Math.random() * (140 - 20)) + 20;
+	};
+
+	Obstacle.prototype.placeObstacle = function () {
 	  this.x = this.randomXGenerator();
 	  return this.x;
 	};
 
-	module.exports = Rock;
+	module.exports = Obstacle;
 
-/***/ },
+/***/ }),
 /* 3 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
-	function World(width, height, floor, surfer, rocks) {
+	function World(width, height, surfer, obstacles) {
 	  this.width = width || 600;
 	  this.height = height || 200;
 	  this.surfer = surfer;
-	  this.rocks = rocks;
-	  this.floor = floor;
+	  this.obstacles = obstacles;
 	}
 
 	module.exports = World;
 
-/***/ },
+/***/ }),
 /* 4 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	function Surfer(options) {
 	  this.x = options.x || 20;
-	  this.y = options.y || 130;
+	  this.y = options.y || 100; // Middle of canvas
 	  this.width = 50;
 	  this.height = 60;
 	  this.right = this.x + this.width;
-	  this.gravity = 1;
-	  this.velocity = 0;
-	  this.bottom = this.y + this.height || 190;
+	  this.verticalSpeed = 4; // Speed for moving up/down
+	  this.movingUp = false;
+	  this.movingDown = false;
+	  this.minY = 20; // Top boundary
+	  this.maxY = 140; // Bottom boundary (200 - 60)
+	  this.bottom = this.y + this.height;
 	  this.image = new Image();
 	  this.image.src = `./img/surfer.png`;
 	}
 
-	Surfer.prototype.jump = function () {
-	  if (this.belowGround()) {
-	    // If so, move us back to ground level and set velocity to zero
-	    this.resetAtGround();
-	  } else {
-	    // Otherwise, move what is indicated by velocity
-	    this.up();
+	Surfer.prototype.moveUp = function () {
+	  this.movingUp = true;
+	};
+
+	Surfer.prototype.moveDown = function () {
+	  this.movingDown = true;
+	};
+
+	Surfer.prototype.stopMovingUp = function () {
+	  this.movingUp = false;
+	};
+
+	Surfer.prototype.stopMovingDown = function () {
+	  this.movingDown = false;
+	};
+
+	Surfer.prototype.update = function () {
+	  if (this.movingUp && this.y > this.minY) {
+	    this.y -= this.verticalSpeed;
 	  }
-	};
-
-	Surfer.prototype.belowGround = function () {
-	  return this.y + this.velocity + this.height > 190;
-	};
-
-	Surfer.prototype.up = function () {
-	  this.velocity += this.gravity;
-	  this.y += this.velocity - this.gravity;
-	  this.bottom = this.y + this.height;
-	};
-
-	Surfer.prototype.resetAtGround = function () {
-	  this.velocity = 0;
-	  this.y = 190 - this.height;
+	  if (this.movingDown && this.y < this.maxY) {
+	    this.y += this.verticalSpeed;
+	  }
 	  this.bottom = this.y + this.height;
 	};
 
 	module.exports = Surfer;
 
-/***/ },
+/***/ }),
 /* 5 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	function Collision(surfer) {
 	  this.surfer = surfer;
@@ -318,27 +336,23 @@
 	  }, this);
 	};
 
-	Collision.prototype.frontColliding = function (obstacle) {
-	  return obstacle.x < this.surfer.right;
+	Collision.prototype.horizontalColliding = function (obstacle) {
+	  return obstacle.x < this.surfer.right && obstacle.right > this.surfer.x;
 	};
 
-	Collision.prototype.backColliding = function (obstacle) {
-	  return obstacle.right > this.surfer.x;
-	};
-
-	Collision.prototype.surferBottomCollidingWithObstacleTop = function (obstacle) {
-	  return obstacle.y < this.surfer.bottom;
+	Collision.prototype.verticalColliding = function (obstacle) {
+	  return obstacle.y < this.surfer.bottom && obstacle.bottom > this.surfer.y;
 	};
 
 	Collision.prototype.isCollision = function (obstacle) {
-	  return this.frontColliding(obstacle) && this.backColliding(obstacle) && this.surferBottomCollidingWithObstacleTop(obstacle);
+	  return this.horizontalColliding(obstacle) && this.verticalColliding(obstacle);
 	};
 
 	module.exports = Collision;
 
-/***/ },
+/***/ }),
 /* 6 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	const FONTS = {
 	  main: '40px Covered By Your Grace',
@@ -347,15 +361,19 @@
 
 	module.exports = FONTS;
 
-/***/ },
+/***/ }),
 /* 7 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	const KEYS = {
-	  spacebar: 32
+	  spacebar: 32,
+	  up: 38,
+	  down: 40,
+	  w: 87,
+	  s: 83
 	};
 
 	module.exports = KEYS;
 
-/***/ }
+/***/ })
 /******/ ]);
