@@ -1,23 +1,41 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Game Time: Surf's Up</title>
-  <link rel="stylesheet" href="css/reset.css" charset="utf-8">
-  <link rel="stylesheet" href="css/style.css" charset="utf-8">
-  <link href="https://fonts.googleapis.com/css?family=Covered+By+Your+Grace" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Surf's Up</title>
+  <meta name="description" content="Ride the face, dodge the crowd, boost the lip. A one-more-go surf game in a single canvas.">
+  <meta name="theme-color" content="#0b3b52">
+
+  <meta property="og:title" content="Surf's Up">
+  <meta property="og:description" content="Ride the face, dodge the crowd, boost the lip.">
+  <meta property="og:type" content="website">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Righteous&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏄</text></svg>">
 </head>
 <body>
-  <header>
-    <h1>Surf's Up!</h1>
-  </header>
-  <div class = "container">
-    <canvas id="surfer-game" style="border: 5px solid #15607F; background: url(img/wave.png);" width="600" height="200" ></canvas>
-  </div>
+  <main class="stage">
+    <h1 class="wordmark">Surf's Up</h1>
+    <div class="frame">
+      <canvas id="surf" aria-label="Surf's Up game" role="img"></canvas>
+    </div>
+    <p class="legend">
+      <span><kbd>↑</kbd><kbd>↓</kbd> ride the face</span>
+      <span><kbd>Space</kbd> air &amp; grab</span>
+      <span><kbd>←</kbd><kbd>→</kbd> spin</span>
+      <span><kbd>P</kbd> pause</span>
+      <span><kbd>M</kbd> mute</span>
+    </p>
+    <p class="rotate-hint">Turn your phone sideways for a bigger wave.</p>
+  </main>
 
-  <h2>Press "spacebar" to jump over the rocks.</h2>
-  <h2>Press "spacebar" to start a new game.</h2>
-
-  <script src="main.bundle.js"></script>
+  <noscript>
+    <p style="text-align:center;color:#eaf7ff">Surf's Up needs JavaScript — it's a canvas game.</p>
+  </noscript>
+  <script type="module" src="src/main.js"></script>
 </body>
 </html>

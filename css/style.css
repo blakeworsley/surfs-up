@@ -1,25 +1,132 @@
-header h1 {
-  font-family: 'Covered By Your Grace', cursive;
-  font-size: 100px;
-  color: #black;
-  text-align: center;
-  margin-top: 20px;
-  margin-bottom: 50px;
+:root {
+  --ink: #04212e;
+  --foam: #eefaff;
+  --deep: #06344a;
+  --glow: rgba(126, 231, 255, 0.35);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
 }
 
 body {
-  background: url(../img/wave-bkgd.jpg) no-repeat;
-}
-
-.container {
   display: flex;
+  align-items: center;
   justify-content: center;
+  padding: clamp(8px, 2vmin, 28px);
+  font-family: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  color: var(--foam);
+  background:
+    radial-gradient(120% 90% at 50% -20%, #1a6b8f 0%, #0a3b53 45%, #04202e 100%),
+    #04202e;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
-h2 {
-  font-family: 'Covered By Your Grace', cursive;
-  font-size: 50px;
-  color: black;
+.stage {
+  width: min(1180px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(6px, 1.4vmin, 16px);
+}
+
+.wordmark {
+  margin: 0;
+  font-family: "Righteous", "Baloo 2", system-ui, sans-serif;
+  font-size: clamp(22px, 4.2vmin, 42px);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--foam);
+  text-shadow: 0 2px 0 rgba(4, 33, 46, 0.6), 0 0 26px var(--glow);
+}
+
+.frame {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: clamp(10px, 1.6vmin, 20px);
+  overflow: hidden;
+  background: var(--deep);
+  border: 2px solid rgba(160, 232, 250, 0.35);
+  box-shadow:
+    0 24px 60px -20px rgba(0, 0, 0, 0.75),
+    0 0 0 6px rgba(6, 52, 74, 0.55),
+    inset 0 0 40px rgba(0, 0, 0, 0.25);
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(8px, 2vmin, 22px);
+  margin: 0;
+  font-size: clamp(11px, 1.6vmin, 15px);
+  color: rgba(224, 246, 255, 0.72);
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.7em;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 0.95em;
+  font-weight: 700;
   text-align: center;
-  margin-top: 50px;
+  color: var(--foam);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(180, 236, 250, 0.45);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+}
+
+/* Only shown on a portrait phone, where 16:9 leaves the canvas rather small. */
+.rotate-hint {
+  display: none;
+  margin: 0;
+  font-size: 14px;
+  color: rgba(224, 246, 255, 0.7);
+}
+
+/* On short screens the chrome around the canvas is just noise. */
+@media (max-height: 520px) {
+  .wordmark,
+  .legend {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .legend {
+    display: none;
+  }
+}
+
+@media (orientation: portrait) and (pointer: coarse) {
+  .rotate-hint {
+    display: block;
+  }
 }
