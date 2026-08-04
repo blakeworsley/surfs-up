@@ -117,6 +117,38 @@ test('barrel time pays more the deeper in the pocket you are', () => {
   assert.equal(deep.barrelTime, 1);
 });
 
+test('the breakdown accounts for every point in the total', () => {
+  const board = new Scoreboard();
+  board.reset();
+
+  board.addDistance(9000);
+  board.landTrick(landing({ rotations: 2 }));
+  board.addBarrelTime(2, 0.8);
+
+  const parts = board.breakdown();
+  assert.equal(
+    parts.distancePoints + parts.trickScore + parts.barrelScore,
+    board.total,
+    'the rows on the results panel must add up to what it shows as the total',
+  );
+  assert.ok(parts.metres > 0);
+  assert.equal(parts.landedTricks, 1);
+  assert.equal(parts.bestTrick, '720 DOUBLE');
+  assert.equal(parts.barrelTime, 2);
+});
+
+test('an empty run still produces a well-formed breakdown', () => {
+  const board = new Scoreboard();
+  board.reset();
+  const parts = board.breakdown();
+
+  assert.deepEqual(
+    [parts.distancePoints, parts.trickScore, parts.barrelScore, parts.landedTricks],
+    [0, 0, 0, 0],
+  );
+  assert.equal(parts.bestTrick, '');
+});
+
 test('resetting a run clears the score but keeps the personal best', () => {
   const board = new Scoreboard();
   board.reset();

@@ -50,6 +50,14 @@ export class Game {
     this.reason = '';
     this.wipeoutTimer = 0;
     this.titlePhase = 0;
+    // Seconds since the run began, used to cross-fade the title away.
+    this.sinceStart = Infinity;
+    // A wash of foam over the screen when a run starts.
+    this.flash = 0;
+    // Only the first paddle-out cross-fades from the title card; restarts
+    // come from the results panel and should not flash it back up.
+    this.fadingTitle = false;
+    this.activeZones = new Set();
   }
 
   get difficulty() {
@@ -67,6 +75,7 @@ export class Game {
   }
 
   start() {
+    this.fadingTitle = this.state === STATE.title;
     this.wave = new Wave();
     this.wave.nextBarrelAt = DIFFICULTY.barrelsAfter;
     this.surfer.reset();
@@ -74,11 +83,13 @@ export class Game {
     this.particles.clear();
     this.popups.clear();
     this.score.reset();
-    this.hud.scoreShown = 0;
+    this.hud.reset();
     this.camY = 0;
     this.shake = 0;
     this.timeScale = 1;
     this.sinceOver = 0;
+    this.sinceStart = 0;
+    this.flash = 1;
     this.wipeoutTimer = 0;
     this.reason = '';
     this.state = STATE.playing;
@@ -95,6 +106,8 @@ export class Game {
     const step = Math.min(dt, 1 / 30);
 
     if (input.mutePressed) { this.audio.toggleMute(); }
+    if (input.zones) { this.activeZones = input.zones; }
+    this.flash = Math.max(0, this.flash - dt * 3.4);
 
     switch (this.state) {
       case STATE.title:
@@ -133,12 +146,13 @@ export class Game {
     this.particles.wake(this.rng, this.surfer.x - 26, this.surfer.y + 8, cruise, 1);
     this.emitLipMist(dt);
     this.particles.update(dt, cruise);
-    this.hud.update(dt, 0);
+    this.hud.update(dt, {});
 
     if (input.startPressed) { this.start(); }
   }
 
   updatePlaying(dt, input) {
+    this.sinceStart += dt;
     const wiping = this.surfer.mode === MODE.wipeout;
 
     if (input.pausePressed && !wiping) {
@@ -172,7 +186,12 @@ export class Game {
     this.particles.update(scaled, this.surfer.speed);
     this.popups.update(scaled, this.surfer.speed);
     this.updateCamera(dt);
-    this.hud.update(dt, this.score.total);
+    this.hud.update(dt, {
+      score: this.score.total,
+      multiplier: this.score.multiplier,
+      inBarrel: this.wave.inBarrel,
+      speedNorm: this.speedNorm,
+    });
 
     this.audio.setIntensity(this.speedNorm, this.wave.inPocket(this.surfer.h), !wiping);
 
@@ -189,7 +208,12 @@ export class Game {
     this.particles.update(dt, this.surfer.speed);
     this.popups.update(dt, this.surfer.speed);
     this.updateCamera(dt);
-    this.hud.update(dt, this.score.total);
+    this.hud.update(dt, {
+      score: this.score.total,
+      multiplier: this.score.multiplier,
+      inBarrel: this.wave.inBarrel,
+      speedNorm: this.speedNorm,
+    });
 
     // A short lockout so a mashed space bar doesn't skip the result.
     if (input.startPressed && this.sinceOver > 0.45) { this.start(); }
@@ -320,8 +344,9 @@ export class Game {
       + this.rng.range(-DIFFICULTY.barrelIntervalJitter, DIFFICULTY.barrelIntervalJitter);
 
     this.audio.barrelStart();
-    this.popups.add('BARREL SECTION!', VIEW.width / 2, 150, {
-      size: 34, color: '#ffd465', maxLife: 1.8, drift: 0,
+    // Below the banner the HUD puts at the top of the screen, not on top of it.
+    this.popups.add('BARREL SECTION!', VIEW.width / 2, 232, {
+      size: 34, color: '#ffd465', maxLife: 1.8, drift: 0, rise: 26,
     });
   }
 
@@ -405,40 +430,63 @@ export class Game {
     this.waveRenderer.drawBarrelVignette(ctx, this.wave.pocketDepth(this.surfer.h) * this.wave.barrelIntensity());
     this.drawVignette(ctx);
 
-    if (this.state === STATE.title) {
+    const hudState = {
+      score: this.score.total,
+      highScore: this.score.highScore,
+      multiplier: this.score.multiplier,
+      wave: this.wave,
+      surfer: this.surfer,
+      muted: this.audio.muted,
+      speedNorm: this.speedNorm,
+      tutorial: this.tutorial,
+      time: this.time,
+      showTouch: this.showTouch,
+      activeZones: this.activeZones,
+      // The readouts step aside once a panel takes over the screen.
+      hudFade: this.state === STATE.title ? 0
+        : this.state === STATE.over ? 1 - clamp(this.sinceOver / 0.3, 0, 1)
+          : this.state === STATE.paused ? 0.3 : 1,
+    };
+
+    // Always drawn: at fade 0 this is just the sound control.
+    this.hud.draw(ctx, hudState);
+
+    // The title card fades out over the first moments of a run rather than
+    // cutting, so paddling out feels like one movement.
+    const titleFade = this.state === STATE.title
+      ? 1
+      : this.fadingTitle * (1 - clamp(this.sinceStart / 0.3, 0, 1));
+
+    if (titleFade > 0.01) {
       this.hud.drawTitle(ctx, {
-        time: this.time,
+        elapsed: this.titlePhase,
         highScore: this.score.highScore,
+        bestTrick: this.score.bestTrick,
         showTouch: this.showTouch,
+        fade: titleFade,
       });
-    } else {
-      this.hud.draw(ctx, {
+    }
+
+    if (this.state === STATE.paused) {
+      this.hud.drawPaused(ctx, { showTouch: this.showTouch });
+    }
+
+    if (this.state === STATE.over) {
+      this.hud.drawGameOver(ctx, {
+        elapsed: this.sinceOver,
         score: this.score.total,
         highScore: this.score.highScore,
-        multiplier: this.score.multiplier,
-        wave: this.wave,
-        surfer: this.surfer,
-        muted: this.audio.muted,
-        speedNorm: this.speedNorm,
-        tutorial: this.tutorial,
-        time: this.time,
+        reason: this.reason,
+        breakdown: this.score.breakdown(),
+        beatHighScore: this.score.beatHighScore,
         showTouch: this.showTouch,
       });
     }
 
-    if (this.state === STATE.paused) { this.hud.drawPaused(ctx); }
-
-    if (this.state === STATE.over) {
-      this.hud.drawGameOver(ctx, {
-        time: this.time,
-        score: this.score.total,
-        highScore: this.score.highScore,
-        reason: this.reason,
-        bestTrick: this.score.bestTrickThisRun,
-        beatHighScore: this.score.beatHighScore,
-        showTouch: this.showTouch,
-        sinceOver: this.sinceOver,
-      });
+    // A wash of foam over the lens as you drop in.
+    if (this.flash > 0.01) {
+      ctx.fillStyle = `rgba(226, 252, 255, ${this.flash * 0.42})`;
+      ctx.fillRect(0, 0, VIEW.width, VIEW.height);
     }
 
     ctx.restore();

@@ -24,10 +24,16 @@ export const TOUCH_ZONES = {
   up: { x: 88, y: 372, radius: 44, glyph: '▲' },
   down: { x: 88, y: 470, radius: 44, glyph: '▼' },
   action: { x: 872, y: 372, radius: 50, glyph: 'AIR' },
-  // Kept left of the corner so they don't sit under the mute indicator.
+  // Kept left of the corner so they don't sit under the mute control.
   left: { x: 690, y: 470, radius: 40, glyph: '↺' },
   right: { x: 812, y: 470, radius: 40, glyph: '↻' },
+  // Not a movement control — a tap target, so that muting is possible without
+  // a keyboard. Drawn by the HUD as a speaker rather than a button.
+  mute: { x: 922, y: 502, radius: 24, glyph: '' },
 };
+
+/** Zones that are held down rather than tapped. */
+const HOLD_ZONES = new Set(['up', 'down', 'left', 'right', 'action']);
 
 export class Input {
   /**
@@ -91,10 +97,19 @@ export class Input {
     const onPointerDown = (event) => {
       if (event.pointerType !== 'mouse') { this.touchActive = true; }
       this.anyInputSeen = true;
-      this.startPressed = true;
 
       const zone = this.zoneAt(event.clientX, event.clientY);
-      if (zone) {
+
+      if (zone === 'mute') {
+        // A tap on the speaker toggles sound — and must not also count as
+        // "start", or muting on the results screen would restart the run.
+        this.mutePressed = true;
+        event.preventDefault();
+        return;
+      }
+
+      this.startPressed = true;
+      if (zone && HOLD_ZONES.has(zone)) {
         this.pointerZones.set(event.pointerId, zone);
         if (zone === 'action') { this.actionPressed = true; }
         this.canvas.setPointerCapture?.(event.pointerId);
@@ -105,7 +120,7 @@ export class Input {
     const onPointerMove = (event) => {
       if (!this.pointerZones.has(event.pointerId)) { return; }
       const zone = this.zoneAt(event.clientX, event.clientY);
-      if (zone) {
+      if (zone && HOLD_ZONES.has(zone)) {
         this.pointerZones.set(event.pointerId, zone);
       } else {
         this.pointerZones.delete(event.pointerId);
@@ -150,6 +165,8 @@ export class Input {
       startPressed: this.startPressed,
       pausePressed: this.pausePressed,
       mutePressed: this.mutePressed,
+      // Which on-screen buttons are held, so the HUD can show them pressed.
+      zones,
     };
 
     this.actionPressed = false;
@@ -170,4 +187,5 @@ export const NEUTRAL_INPUT = {
   startPressed: false,
   pausePressed: false,
   mutePressed: false,
+  zones: new Set(),
 };

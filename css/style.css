@@ -51,7 +51,11 @@ body {
 }
 
 .frame {
+  /* Width is set by fitFrame() in main.js, which measures both axes so the
+     frame never grows taller than the viewport. This is the pre-script
+     fallback. */
   width: 100%;
+  max-width: 100%;
   aspect-ratio: 16 / 9;
   border-radius: clamp(10px, 1.6vmin, 20px);
   overflow: hidden;

@@ -64,7 +64,29 @@ export class Scoreboard {
   }
 
   get total() {
-    return Math.floor(this.distance * SCORING.pointsPerPixel) + this.trickScore + this.barrelScore;
+    return this.distancePoints + this.trickScore + this.barrelScore;
+  }
+
+  get distancePoints() {
+    return Math.floor(this.distance * SCORING.pointsPerPixel);
+  }
+
+  /**
+   * Where the run's points came from, for the results panel. Seeing the split
+   * is what tells you whether to chase distance, tricks or barrels next time.
+   */
+  breakdown() {
+    return {
+      distancePoints: this.distancePoints,
+      // The wave face is roughly 3m of water per 100px, which makes the
+      // distance read as a surfable ride rather than a pixel count.
+      metres: this.distance * 0.03,
+      trickScore: this.trickScore,
+      landedTricks: this.landedTricks,
+      bestTrick: this.bestTrickThisRun,
+      barrelScore: this.barrelScore,
+      barrelTime: this.barrelTime,
+    };
   }
 
   addDistance(pixels) {
